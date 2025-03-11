@@ -7,24 +7,26 @@ import type { CreateTenantDto } from './dto/CreateTenatDto';
 export class TenantService {
   constructor(private readonly em: EntityManager) { };
 
-  async createTenant(dto: CreateTenantDto): Promise<{ message: string; data: Tenant }> {
+  async createTenant(dto: CreateTenantDto): Promise<{ status: number, message: string; data: Tenant }> {
     const { name, description } = dto
     const tenant = this.em.create(Tenant, {
       name: name,
       description: description,
     },
-      {partial: true}
+      { partial: true }
     );
     await this.em.persistAndFlush(tenant);
     return {
+      status: 201,
       message: "Tenant created successfully",
       data: tenant,
     };
   }
 
-  async getAllTenants(): Promise<{ message: string; data: Tenant[] }> {
+  async getAllTenants(): Promise<{ status: number, message: string; data: Tenant[] }> {
     const tenants = await this.em.find(Tenant, {});
     return {
+      status: 200,
       message: "Tenants data fetched successfully",
       data: tenants
     }
@@ -34,20 +36,34 @@ export class TenantService {
     return this.em.findOne(Tenant, { id });
   }
 
-  async updateTenant(id: string, tenantData: Partial<Tenant>): Promise<Tenant | null> {
-    const tenant = await this.em.findOne(Tenant, { id });
-    if (!tenant) return null;
-    tenant.name = tenantData.name || tenant.name;
-    tenant.description = tenantData.description || tenant.description;
-    tenant.updatedAt = new Date();
-    await this.em.flush();
-    return tenant;
+  async updateTenant(id: string, dto: CreateTenantDto): Promise<{ status: number, message: string, data: Tenant | null }> {
+    const { name, description } = dto
+
+    const tenant = await this.em.findOne(Tenant, { id })
+
+    if (!tenant) {
+      return { status: 404, message: "Tenant not found", data: null }
+    }
+
+    this.em.assign(tenant, { name, description })
+
+    await this.em.flush()
+
+    return {
+      status: 200,
+      message: "Tenant updated successfully",
+      data: tenant
+    }
   }
 
-  async deleteTenant(id: string): Promise<boolean> {
+  async deleteTenant(id: string): Promise<{ success: boolean }> {
     const tenant = await this.em.findOne(Tenant, { id });
-    if (!tenant) return false;
+    if (!tenant) {
+      return { success: false };
+    }
     await this.em.removeAndFlush(tenant);
-    return true;
+    return {
+      success: true
+    };
   }
 }
